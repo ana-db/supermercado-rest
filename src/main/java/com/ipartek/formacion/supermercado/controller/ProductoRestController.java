@@ -20,7 +20,7 @@ import com.ipartek.formacion.supermercado.modelo.pojo.Producto;
 /**
  * Servlet implementation class ProductoRestController
  */
-@WebServlet({ "/producto/", "/producto" })
+@WebServlet({ "/producto/*", "/producto" })
 public class ProductoRestController extends HttpServlet {
 	
 	private static final long serialVersionUID = 1L;
@@ -59,6 +59,10 @@ public class ProductoRestController extends HttpServlet {
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
 		LOG.trace("peticion GET");
+		
+		String pathInfo = request.getPathInfo();
+		
+		LOG.debug("mirar pathInfo:" + pathInfo + " para saber si es listado o detalle" );
 		
 		//recuperamos todos los productos de la bd:
 		ArrayList<Producto> lista = (ArrayList<Producto>) productoDao.getAll();
