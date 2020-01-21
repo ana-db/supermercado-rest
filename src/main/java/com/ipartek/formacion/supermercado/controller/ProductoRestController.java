@@ -1,5 +1,6 @@
 package com.ipartek.formacion.supermercado.controller;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -85,14 +86,37 @@ public class ProductoRestController extends HttpServlet {
 		}	
 		
 	}
+	
 
 	/**
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// TODO Auto-generated method stub
-		doGet(request, response);
+		
+		LOG.debug("POST crear recurso");
+		
+		/////////////////////////////////////////////
+		Producto nuevoProducto = null;
+		
+		try {
+			productoDao.create(nuevoProducto);
+			response.setStatus( HttpServletResponse.SC_OK ); //200
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		/////////////////////////////////////////////
+		
+		// convertir json del request body a Objeto
+		BufferedReader reader = request.getReader();               
+		Gson gson = new Gson();
+		Producto producto = gson.fromJson(reader, Producto.class);
+		
+		LOG.debug(" Json convertido a Objeto: " + producto);
+		
+		response.setStatus( HttpServletResponse.SC_NOT_IMPLEMENTED );
 	}
+	
 
 	/**
 	 * @see HttpServlet#doPut(HttpServletRequest, HttpServletResponse)
