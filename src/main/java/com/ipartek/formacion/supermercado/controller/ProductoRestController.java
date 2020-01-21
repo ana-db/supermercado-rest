@@ -74,7 +74,12 @@ public class ProductoRestController extends HttpServlet {
 		out.flush(); //termina de escribir los datos en el body
 		
 		//response status code:
-		response.setStatus( HttpServletResponse.SC_OK ); //200
+		if ( !lista.isEmpty() ) {			
+			response.setStatus( HttpServletResponse.SC_OK ); //200
+		}else {
+			response.setStatus( HttpServletResponse.SC_NO_CONTENT ); //204
+		}	
+		
 	}
 
 	/**
