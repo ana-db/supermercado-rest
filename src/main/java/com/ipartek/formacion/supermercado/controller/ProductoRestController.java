@@ -17,11 +17,12 @@ import org.apache.log4j.Logger;
 import com.google.gson.Gson;
 import com.ipartek.formacion.supermercado.modelo.dao.ProductoDAO;
 import com.ipartek.formacion.supermercado.modelo.pojo.Producto;
+import com.ipartek.formacion.supermercado.pojo.ResponseMensaje;
 
 /**
  * Servlet implementation class ProductoRestController
  */
-@WebServlet({ "/producto/*", "/producto" })
+@WebServlet({ "/producto/*", "/producto"})
 public class ProductoRestController extends HttpServlet {
 	
 	private static final long serialVersionUID = 1L;
@@ -50,6 +51,11 @@ public class ProductoRestController extends HttpServlet {
 	 */
 	protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
+		//preparamos la respuesta indicando qué tipo de dato devuelve 
+		//(estas 2 líneas las metemos en el service porque son comunes a todos los métodos):
+		response.setContentType("application/json"); //por defecto --> text/html;charset=UTF-8
+		response.setCharacterEncoding("utf-8");
+
 		super.service(request, response); //llama a doGet, doPost, doPut o doDelete
 		
 	}
@@ -65,26 +71,59 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.debug("mirar pathInfo:" + pathInfo + " para saber si es listado o detalle" );
 		
-		//recuperamos todos los productos de la bd:
-		ArrayList<Producto> lista = (ArrayList<Producto>) productoDao.getAll();
-		
-		//preparamos la respuesta indicando qué tipo de dato devuelve:
-		response.setContentType("application/json"); //por defecto --> text/html;charset=UTF-8
-		response.setCharacterEncoding("utf-8");
-		
-		//response body
-		PrintWriter out = response.getWriter(); //se encarga de poder escribir los datos en el body
-		String jsonResponseBody = new Gson().toJson(lista); //convertir java -> json (usando la librería gson)
-		out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
-		out.flush(); //termina de escribir los datos en el body
-		
-		//response status code:
-		if ( !lista.isEmpty() ) {			
-			response.setStatus( HttpServletResponse.SC_OK ); //200
+	
+		if (pathInfo == null || "/".equals(pathInfo)) {
+			//recuperamos todos los productos de la bd:
+			ArrayList<Producto> lista = (ArrayList<Producto>) productoDao.getAll();
+			
+			//response body
+			PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
+			String jsonResponseBody = new Gson().toJson(lista); //convertir java -> json (usando la librería gson)
+			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
+			out.flush(); //termina de escribir los datos en el body
+			
+			//response status code:
+			if ( !lista.isEmpty() ) {			
+				response.setStatus( HttpServletResponse.SC_OK ); //200, ok
+			}else {
+				response.setStatus( HttpServletResponse.SC_NO_CONTENT ); //204, no hay contenido: encuentra el recurso pero está vacío
+			}
 		}else {
-			response.setStatus( HttpServletResponse.SC_NO_CONTENT ); //204
-		}	
+			//buscamos el valor del índice del producto en la url
+			String partes[] = pathInfo.split("/"); //pathInfo --> / ó /8
+			String parte1 = partes[0]; // nos devolverá lo que haya a la izqda de /, (nada)
+			String parte2 = partes[1]; // nos devolverá lo que haya a la drcha de /, que en caso de haber algo, será el id
+				
+			
+			int id = (parte2.isEmpty()) ? 0 : Integer.parseInt(parte2); //int id = Integer.parseInt(parte2);
+			
+			if(id != 0) {
+				//recuperamos un producto por su id:
+				Producto productoVisualizar = new Producto();
+				productoVisualizar = productoDao.getById(id);
+				
+				//response body
+				PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
+				String jsonResponseBody = new Gson().toJson(productoVisualizar); //convertir java -> json (usando la librería gson)
+				out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
+				out.flush(); //termina de escribir los datos en el body
+				
+				//response status code:
+				if ( productoVisualizar != null ) {			
+					response.setStatus( HttpServletResponse.SC_OK ); //200, ok
+				}else {
+					response.setStatus( HttpServletResponse.SC_NOT_FOUND ); //404, no se encuentra el recurso solicitado
+				}
+				
+			}
+		}
 		
+
+		
+	}
+	
+	private int obtenerId(String pathInfo) {
+		return(-1);
 	}
 	
 
@@ -108,13 +147,22 @@ public class ProductoRestController extends HttpServlet {
 		/////////////////////////////////////////////
 		
 		// convertir json del request body a Objeto
-		BufferedReader reader = request.getReader();               
-		Gson gson = new Gson();
-		Producto producto = gson.fromJson(reader, Producto.class);
+		BufferedReader reader = request.getReader(); //coge los datos del body de postman           
+		Gson gson = new Gson(); //crea un objeto gson
+		Producto producto = gson.fromJson(reader, Producto.class); //convierte el objeto gson en uno de la clase Producto
+		
+		//TODO validar objeto bien creado
 		
 		LOG.debug(" Json convertido a Objeto: " + producto);
 		
 		response.setStatus( HttpServletResponse.SC_NOT_IMPLEMENTED );
+		
+		//response body para enviar posibles errores
+		PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
+		String jsonResponseBody = new Gson().toJson(new ResponseMensaje("Falta codigo")); //convertir java -> json (usando la librería gson)
+		out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
+		out.flush(); //termina de escribir los datos en el body
+		
 	}
 	
 
@@ -122,14 +170,20 @@ public class ProductoRestController extends HttpServlet {
 	 * @see HttpServlet#doPut(HttpServletRequest, HttpServletResponse)
 	 */
 	protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// TODO Auto-generated method stub
+		
+		LOG.debug("PUT modificar recurso");
+		
+		response.setStatus( HttpServletResponse.SC_NOT_IMPLEMENTED );
 	}
 
 	/**
 	 * @see HttpServlet#doDelete(HttpServletRequest, HttpServletResponse)
 	 */
 	protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// TODO Auto-generated method stub
+
+		LOG.debug("DELETE eliminar recurso");
+		
+		response.setStatus( HttpServletResponse.SC_NOT_IMPLEMENTED );
 	}
 
 }
