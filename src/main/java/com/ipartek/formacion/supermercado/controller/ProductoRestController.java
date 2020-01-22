@@ -18,6 +18,7 @@ import com.google.gson.Gson;
 import com.ipartek.formacion.supermercado.modelo.dao.ProductoDAO;
 import com.ipartek.formacion.supermercado.modelo.pojo.Producto;
 import com.ipartek.formacion.supermercado.pojo.ResponseMensaje;
+import com.ipartek.formacion.supermercado.utils.Utilidades;
 
 /**
  * Servlet implementation class ProductoRestController
@@ -30,6 +31,9 @@ public class ProductoRestController extends HttpServlet {
 	private final static Logger LOG = Logger.getLogger(ProductoRestController.class);
 	
 	private ProductoDAO productoDao;
+	
+	private String pathInfo;
+	private int statusCode;
 	
 	
 	/**
@@ -51,10 +55,13 @@ public class ProductoRestController extends HttpServlet {
 	 */
 	protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
-		//preparamos la respuesta indicando qué tipo de dato devuelve 
-		//(estas 2 líneas las metemos en el service porque son comunes a todos los métodos):
+		//preparamos la respuesta indicando qué tipo de dato devuelve, ContentType y charSet
+		//lo hacemos en el service porque son comunes a todos los métodos:
 		response.setContentType("application/json"); //por defecto --> text/html;charset=UTF-8
 		response.setCharacterEncoding("utf-8");
+		
+		pathInfo = request.getPathInfo();
+		LOG.debug("mirar pathInfo:" + pathInfo + " para saber si es listado o detalle" );
 
 		super.service(request, response); //llama a doGet, doPost, doPut o doDelete
 		
@@ -67,11 +74,57 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.trace("peticion GET");
 		
-		String pathInfo = request.getPathInfo();
+		Object responseBody = null;
 		
-		LOG.debug("mirar pathInfo:" + pathInfo + " para saber si es listado o detalle" );
+		try {
+			
+			//buscamos el valor del índice del producto en la url con la función obtenerId:
+			int id = Utilidades.obtenerId(pathInfo);
+			
+			if ( id != -1 ) {	//detalle de un producto según su id
+				
+				//recuperamos un producto por su id:
+				responseBody = productoDao.getById(id);
+				
+				//response status code:
+				if ( null != responseBody ) {
+					statusCode = HttpServletResponse.SC_OK;	//200, ok
+				}else {
+					statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
+				}
+				
+			}else {		//listado de todos los productos de la bd
+				
+				//recuperamos todos los productos de la bd:
+				responseBody = (ArrayList<Producto>) productoDao.getAll();
+				
+				//response status code:
+				if (  ((ArrayList<Producto>)responseBody).isEmpty()  ) {
+					statusCode = HttpServletResponse.SC_NO_CONTENT;	//204, no hay contenido: encuentra el recurso pero está vacío
+				}else {
+					statusCode = HttpServletResponse.SC_OK;	//200, ok
+				}
+				
+			}			
+			
+		}catch (Exception e) {			
+			// response status code
+			responseBody = new ResponseMensaje(e.getMessage());			
+			statusCode = HttpServletResponse.SC_BAD_REQUEST;
+			
+		} finally  {
+			response.setStatus( statusCode );
+			
+			//response body (lo ponemos en el finally porque lo utilizamos para listar todos los productos y para el detalle)
+			PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
+			String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
+			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
+			out.flush(); //termina de escribir los datos en el body      
+		}	
 		
-	
+		
+		//con el código anterior, hemos mejorado el siguiente usando la función obtenerId para controlar errores en la uri e intentando no repetir código
+		/*
 		if (pathInfo == null || "/".equals(pathInfo)) {
 			//recuperamos todos los productos de la bd:
 			ArrayList<Producto> lista = (ArrayList<Producto>) productoDao.getAll();
@@ -94,7 +147,6 @@ public class ProductoRestController extends HttpServlet {
 			String parte1 = partes[0]; // nos devolverá lo que haya a la izqda de /, (nada)
 			String parte2 = partes[1]; // nos devolverá lo que haya a la drcha de /, que en caso de haber algo, será el id
 				
-			
 			int id = (parte2.isEmpty()) ? 0 : Integer.parseInt(parte2); //int id = Integer.parseInt(parte2);
 			
 			if(id != 0) {
@@ -117,13 +169,9 @@ public class ProductoRestController extends HttpServlet {
 				
 			}
 		}
-		
+		*/
 
 		
-	}
-	
-	private int obtenerId(String pathInfo) {
-		return(-1);
 	}
 	
 
@@ -139,7 +187,8 @@ public class ProductoRestController extends HttpServlet {
 		
 		try {
 			productoDao.create(nuevoProducto);
-			response.setStatus( HttpServletResponse.SC_OK ); //200
+			response.setStatus( HttpServletResponse.SC_CREATED ); //201, creado
+			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -155,11 +204,9 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.debug(" Json convertido a Objeto: " + producto);
 		
-		response.setStatus( HttpServletResponse.SC_NOT_IMPLEMENTED );
-		
-		//response body para enviar posibles errores
+		//response body para enviar posibles errores:
 		PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
-		String jsonResponseBody = new Gson().toJson(new ResponseMensaje("Falta codigo")); //convertir java -> json (usando la librería gson)
+		String jsonResponseBody = new Gson().toJson(nuevoProducto); //convertir java -> json (usando la librería gson)
 		out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
 		out.flush(); //termina de escribir los datos en el body
 		
