@@ -32,11 +32,24 @@ public class UtilidadesTest {
 		assertEquals(-1, Utilidades.obtenerId(null));
 		
 		assertEquals(-1, Utilidades.obtenerId("/")); //esperamos recibir un -1 cuando le pasamos Utilidades.obtenerId("/") 
-		assertEquals(-1, Utilidades.obtenerId("/pepe"));
-		assertEquals(-1, Utilidades.obtenerId("/pepe/"));
+		
 		assertEquals(2, Utilidades.obtenerId("/2"));
 		assertEquals(2, Utilidades.obtenerId("/2/"));
 		assertEquals(99, Utilidades.obtenerId("/99/"));
+		
+		try {
+			assertEquals(-1, Utilidades.obtenerId("/pepe")); //devuelve una excepción porque está mal formado
+			fail("Debería haber lanzado Exception"); //si se ejecuta esta línea, es que está mal porque tendría que haber lanzado una excepción
+		}catch(Exception e){
+			assertTrue(true); //tiene que lanzar una excepción
+		}
+		
+		try {
+			assertEquals(-1, Utilidades.obtenerId("/pepe/")); //devuelve una excepción
+			fail("Debería haber lanzado Exception"); //si se ejecuta esta línea, es que está mal porque tendría que haber lanzado una excepción
+		}catch(Exception e){
+			assertTrue(true); //tiene que lanzar una excepción
+		}
 		
 		try {
 			assertEquals(99, Utilidades.obtenerId("/99/333/hola/"));
