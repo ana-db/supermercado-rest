@@ -212,19 +212,38 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.debug("POST crear recurso");
 		
-		// convertir json del request body a Objeto
-		BufferedReader reader = request.getReader(); //coge los datos del body de postman           
-		Gson gson = new Gson(); //crea un objeto gson
-		Producto producto = gson.fromJson(reader, Producto.class);	//convierte el objeto gson en uno de la clase Producto
-		
-		//TODO validar objeto bien creado
-		
 		try {
-			responseBody = productoDao.create(producto);
-			
-			//response status code:
-			if ( responseBody != null ) {
-				statusCode = HttpServletResponse.SC_CREATED;	//201, creado
+		
+			// convertir json del request body a Objeto:
+			BufferedReader reader = request.getReader(); //coge los datos del body de postman           
+			Gson gson = new Gson(); //crea un objeto gson
+			Producto producto = gson.fromJson(reader, Producto.class);	//convierte el objeto gson en uno de la clase Producto
+			LOG.debug(" Json convertido a Objeto: " + producto);
+		
+			//validamos que el objeto esté bien creado:
+			Set<ConstraintViolation<Producto>>  validacionesErrores = validator.validate(producto);		
+			if ( validacionesErrores.isEmpty() ) {
+		
+				Producto pNuevo = productoDao.create(producto);
+				
+				//response status code:
+				statusCode = HttpServletResponse.SC_CREATED;	//201, creado 
+				responseBody = pNuevo;
+				
+			}else {
+				
+				//response status code:			
+				statusCode = HttpServletResponse.SC_BAD_REQUEST;	//400, datos incorrectos para un producto: precio negativo…
+				ResponseMensaje responseMensaje = new ResponseMensaje("Los valores de este producto no son correctos, revisalos por favor");
+				
+				//enviamos un array de errores para que el usuario tenga una idea de qué datos ha metido mal y por qué:
+				ArrayList<String> errores = new ArrayList<String>();
+				for (ConstraintViolation<Producto> error : validacionesErrores) {					 
+					errores.add( error.getPropertyPath() + " " + error.getMessage() );
+				}				
+				responseMensaje.setErrores(errores);				
+				responseBody = responseMensaje;
+				
 			}
 			
 		} catch (MySQLIntegrityConstraintViolationException e) {
@@ -235,17 +254,7 @@ public class ProductoRestController extends HttpServlet {
 			// response status code
 			responseBody = new ResponseMensaje(e.getMessage());			
 			statusCode = HttpServletResponse.SC_BAD_REQUEST;	//400, datos incorrectos para un producto: precio negativo…
-		} finally  {
-			response.setStatus( statusCode );
-			
-			LOG.debug(" Json convertido a Objeto: " + producto);
-			
-			//response body para enviar posibles errores:
-			PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
-			String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
-			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
-			out.flush(); //termina de escribir los datos en el body      
-		}	
+		} 
 		
 	}
 	
