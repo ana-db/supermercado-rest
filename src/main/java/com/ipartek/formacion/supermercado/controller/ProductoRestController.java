@@ -34,6 +34,7 @@ public class ProductoRestController extends HttpServlet {
 	
 	private String pathInfo;
 	private int statusCode;
+	Object responseBody;
 	
 	
 	/**
@@ -74,7 +75,7 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.trace("peticion GET");
 		
-		Object responseBody = null;
+		responseBody = null;
 		
 		try {
 			
@@ -170,7 +171,6 @@ public class ProductoRestController extends HttpServlet {
 			}
 		}
 		*/
-
 		
 	}
 	
@@ -183,32 +183,39 @@ public class ProductoRestController extends HttpServlet {
 		LOG.debug("POST crear recurso");
 		
 		/////////////////////////////////////////////
-		Producto nuevoProducto = null;
+		Producto nuevoProducto = new Producto();
 		
 		try {
-			productoDao.create(nuevoProducto);
-			response.setStatus( HttpServletResponse.SC_CREATED ); //201, creado
+			responseBody = productoDao.create(nuevoProducto);
+			
+			//response status code:
+			if ( responseBody != null ) {
+				statusCode = HttpServletResponse.SC_CREATED;	//201, creado
+			}else {
+				statusCode = HttpServletResponse.SC_CONFLICT;	//409, nombre duplicado en la bd
+			}
 			
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// response status code
+			responseBody = new ResponseMensaje(e.getMessage());			
+			statusCode = HttpServletResponse.SC_BAD_REQUEST;	//400, datos incorrectos para un producto: precio negativo…
 		}
 		/////////////////////////////////////////////
 		
 		// convertir json del request body a Objeto
 		BufferedReader reader = request.getReader(); //coge los datos del body de postman           
 		Gson gson = new Gson(); //crea un objeto gson
-		Producto producto = gson.fromJson(reader, Producto.class); //convierte el objeto gson en uno de la clase Producto
+		Producto producto = gson.fromJson(reader, Producto.class);	//convierte el objeto gson en uno de la clase Producto
 		
 		//TODO validar objeto bien creado
 		
 		LOG.debug(" Json convertido a Objeto: " + producto);
 		
 		//response body para enviar posibles errores:
-		PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
-		String jsonResponseBody = new Gson().toJson(nuevoProducto); //convertir java -> json (usando la librería gson)
-		out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
-		out.flush(); //termina de escribir los datos en el body
+		PrintWriter out = response.getWriter();	//se encarga de escribir los datos en el body de la response
+		String jsonResponseBody = new Gson().toJson(producto);	//convertir java -> json (usando la librería gson)
+		out.print(jsonResponseBody.toString());	//retornamos un array vacío en json dentro del body
+		out.flush();	//termina de escribir los datos en el body
 		
 	}
 	
@@ -223,6 +230,7 @@ public class ProductoRestController extends HttpServlet {
 		response.setStatus( HttpServletResponse.SC_NOT_IMPLEMENTED );
 	}
 
+	
 	/**
 	 * @see HttpServlet#doDelete(HttpServletRequest, HttpServletResponse)
 	 */
@@ -230,7 +238,37 @@ public class ProductoRestController extends HttpServlet {
 
 		LOG.debug("DELETE eliminar recurso");
 		
-		response.setStatus( HttpServletResponse.SC_NOT_IMPLEMENTED );
+		try {
+			
+			//buscamos el valor del índice del producto en la url con la función obtenerId:
+			int id = Utilidades.obtenerId(pathInfo);
+			
+			if ( id != -1 ) {	//eliminamos el producto por su id
+					
+				responseBody = productoDao.delete(id);
+				
+				//response status code:
+				if ( responseBody != null ) {
+					statusCode = HttpServletResponse.SC_OK;	//200, ok
+				}else {
+					statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
+				}
+				
+			}		
+			
+		}catch (Exception e) {			
+			// response status code
+			responseBody = new ResponseMensaje(e.getMessage());			
+			statusCode = HttpServletResponse.SC_BAD_REQUEST; //400, error del cliente: solicitud mal formada, sintaxis errónea...
+			
+		} finally  {
+			response.setStatus( statusCode );
+			
+			PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
+			String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
+			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
+			out.flush(); //termina de escribir los datos en el body      
+		}	
 	}
 
 }
