@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Set;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -11,6 +12,9 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.ConstraintViolation;
+import javax.validation.Validator;
+import javax.validation.ValidatorFactory;
 
 import org.apache.log4j.Logger;
 
@@ -19,6 +23,7 @@ import com.ipartek.formacion.supermercado.modelo.dao.ProductoDAO;
 import com.ipartek.formacion.supermercado.modelo.pojo.Producto;
 import com.ipartek.formacion.supermercado.pojo.ResponseMensaje;
 import com.ipartek.formacion.supermercado.utils.Utilidades;
+import com.mysql.jdbc.exceptions.MySQLIntegrityConstraintViolationException;
 
 /**
  * Servlet implementation class ProductoRestController
@@ -35,6 +40,10 @@ public class ProductoRestController extends HttpServlet {
 	private String pathInfo;
 	private int statusCode;
 	Object responseBody;
+	
+	//Crear Factoria y Validador
+	ValidatorFactory factory;
+	Validator validator;
 	
 	
 	/**
@@ -182,11 +191,15 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.debug("POST crear recurso");
 		
-		/////////////////////////////////////////////
-		Producto nuevoProducto = new Producto();
+		// convertir json del request body a Objeto
+		BufferedReader reader = request.getReader(); //coge los datos del body de postman           
+		Gson gson = new Gson(); //crea un objeto gson
+		Producto producto = gson.fromJson(reader, Producto.class);	//convierte el objeto gson en uno de la clase Producto
+		
+		//TODO validar objeto bien creado
 		
 		try {
-			responseBody = productoDao.create(nuevoProducto);
+			responseBody = productoDao.create(producto);
 			
 			//response status code:
 			if ( responseBody != null ) {
@@ -195,27 +208,25 @@ public class ProductoRestController extends HttpServlet {
 				statusCode = HttpServletResponse.SC_CONFLICT;	//409, nombre duplicado en la bd
 			}
 			
+		} catch (MySQLIntegrityConstraintViolationException e) {
+			// response status code
+			responseBody = new ResponseMensaje(e.getMessage());			
+			statusCode = HttpServletResponse.SC_CONFLICT;	//409, nombre duplicado en la bd
 		} catch (Exception e) {
 			// response status code
 			responseBody = new ResponseMensaje(e.getMessage());			
 			statusCode = HttpServletResponse.SC_BAD_REQUEST;	//400, datos incorrectos para un producto: precio negativo…
-		}
-		/////////////////////////////////////////////
-		
-		// convertir json del request body a Objeto
-		BufferedReader reader = request.getReader(); //coge los datos del body de postman           
-		Gson gson = new Gson(); //crea un objeto gson
-		Producto producto = gson.fromJson(reader, Producto.class);	//convierte el objeto gson en uno de la clase Producto
-		
-		//TODO validar objeto bien creado
-		
-		LOG.debug(" Json convertido a Objeto: " + producto);
-		
-		//response body para enviar posibles errores:
-		PrintWriter out = response.getWriter();	//se encarga de escribir los datos en el body de la response
-		String jsonResponseBody = new Gson().toJson(producto);	//convertir java -> json (usando la librería gson)
-		out.print(jsonResponseBody.toString());	//retornamos un array vacío en json dentro del body
-		out.flush();	//termina de escribir los datos en el body
+		} finally  {
+			response.setStatus( statusCode );
+			
+			LOG.debug(" Json convertido a Objeto: " + producto);
+			
+			//response body para enviar posibles errores:
+			PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
+			String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
+			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
+			out.flush(); //termina de escribir los datos en el body      
+		}	
 		
 	}
 	
@@ -227,7 +238,42 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.debug("PUT modificar recurso");
 		
-		response.setStatus( HttpServletResponse.SC_NOT_IMPLEMENTED );
+		// convertir json del request body a Objeto
+		BufferedReader reader = request.getReader(); //coge los datos del body de postman           
+		Gson gson = new Gson(); //crea un objeto gson
+		Producto producto = gson.fromJson(reader, Producto.class);	//convierte el objeto gson en uno de la clase Producto
+		
+		//buscamos el valor del índice del producto en la url con la función obtenerId:
+		int id;
+		try {
+			
+			id = Utilidades.obtenerId(pathInfo);
+
+			responseBody = productoDao.update(producto, id);
+			
+			//response status code:
+			if ( responseBody != null ) {
+				statusCode = HttpServletResponse.SC_OK;	//200, ok
+			}else {
+				statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
+			}
+			
+		} catch (Exception e) {
+			// response status code
+			responseBody = new ResponseMensaje(e.getMessage());			
+			statusCode = HttpServletResponse.SC_BAD_REQUEST;	//400, datos incorrectos para un producto: precio negativo…
+			
+		} finally  {
+			response.setStatus( statusCode );
+			
+			LOG.debug(" Json convertido a Objeto: " + producto);
+			
+			//response body para enviar posibles errores:
+			PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
+			String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
+			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
+			out.flush(); //termina de escribir los datos en el body      
+		}	
 	}
 
 	
