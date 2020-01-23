@@ -13,6 +13,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.ConstraintViolation;
+import javax.validation.Validation;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 
@@ -41,6 +42,8 @@ public class ProductoRestController extends HttpServlet {
 	private int statusCode;
 	private Object responseBody;
 	
+	private int id;
+	
 	//Crear Factoria y Validador
 	ValidatorFactory factory;
 	Validator validator;
@@ -50,14 +53,22 @@ public class ProductoRestController extends HttpServlet {
 	 * @see Servlet#init(ServletConfig)
 	 */
 	public void init(ServletConfig config) throws ServletException {
+		
 		productoDao = ProductoDAO.getInstance();
+		
+		factory = Validation.buildDefaultValidatorFactory();
+		validator = factory.getValidator();
 	}
 
 	/**
 	 * @see Servlet#destroy()
 	 */
 	public void destroy() {
+		
 		productoDao = null;
+		
+		factory = null;
+		validator = null;
 	}
 
 	/**
@@ -65,16 +76,46 @@ public class ProductoRestController extends HttpServlet {
 	 */
 	protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
+		LOG.debug( "llamada al método " + request.getMethod() + " - URL " + request.getRequestURL() + " - URI " + request.getRequestURI() );
+		
 		//preparamos la respuesta indicando qué tipo de dato devuelve, ContentType y charSet
 		//lo hacemos en el service porque son comunes a todos los métodos:
 		response.setContentType("application/json"); //por defecto --> text/html;charset=UTF-8
 		response.setCharacterEncoding("utf-8");
 		
+		responseBody = null;
+		
 		pathInfo = request.getPathInfo();
 		LOG.debug("mirar pathInfo:" + pathInfo + " para saber si es listado o detalle" );
-		LOG.debug( "llamada al método " + request.getMethod() + " - URL " + request.getRequestURL() + " - URI " + request.getRequestURI() );
-
-		super.service(request, response); //llama a doGet, doPost, doPut o doDelete
+		
+		
+		//el siguiente código es común a varias funciones GET, POST, PUT y DELETE, por eso lo escribimos en el service:
+		try { 
+			
+			//buscamos el valor del índice del producto en la url con la función obtenerId:
+			//(lo hacemmos en el service porque lo vamos a necesitar para varios métodos)
+			id = Utilidades.obtenerId(pathInfo);
+			
+			super.service(request, response); //llama a doGet, doPost, doPut o doDelete  
+			
+		}catch (Exception e) {
+			
+			statusCode = HttpServletResponse.SC_BAD_REQUEST; //400, error del cliente: solicitud mal formada, sintaxis errónea...
+			responseBody = new ResponseMensaje(e.getMessage());		
+					
+		}finally {	
+			
+			response.setStatus( statusCode );
+			
+			if ( responseBody != null ) { 
+				
+				//response body (lo ponemos en el finally porque lo utilizamos para listar todos los productos y para el detalle)
+				PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
+				String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
+				out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
+				out.flush(); //termina de escribir los datos en el body      
+			}	
+		}	
 		
 	}
 
@@ -85,53 +126,32 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.trace("peticion GET");
 		
-		responseBody = null;
-		
-		try {
+		//cogemos el valor del índice del producto en la url con la función obtenerId (lo hacemos en el service, int id = Utilidades.obtenerId(pathInfo); )
+		if ( id != -1 ) {	//detalle de un producto según su id
 			
-			//buscamos el valor del índice del producto en la url con la función obtenerId:
-			int id = Utilidades.obtenerId(pathInfo);
+			//recuperamos un producto por su id:
+			responseBody = productoDao.getById(id);
 			
-			if ( id != -1 ) {	//detalle de un producto según su id
-				
-				//recuperamos un producto por su id:
-				responseBody = productoDao.getById(id);
-				
-				//response status code:
-				if ( null != responseBody ) {
-					statusCode = HttpServletResponse.SC_OK;	//200, ok
-				}else {
-					statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
-				}
-				
-			}else {		//listado de todos los productos de la bd
-				
-				//recuperamos todos los productos de la bd:
-				responseBody = (ArrayList<Producto>) productoDao.getAll();
-				
-				//response status code:
-				if (  ((ArrayList<Producto>)responseBody).isEmpty()  ) {
-					statusCode = HttpServletResponse.SC_NO_CONTENT;	//204, no hay contenido: encuentra el recurso pero está vacío
-				}else {
-					statusCode = HttpServletResponse.SC_OK;	//200, ok
-				}
-				
-			}			
+			//response status code:
+			if ( null != responseBody ) {
+				statusCode = HttpServletResponse.SC_OK;	//200, ok
+			}else {
+				statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
+			}
 			
-		}catch (Exception e) {			
-			// response status code
-			responseBody = new ResponseMensaje(e.getMessage());			
-			statusCode = HttpServletResponse.SC_BAD_REQUEST;
+		}else {		//listado de todos los productos de la bd
 			
-		} finally  {
-			response.setStatus( statusCode );
+			//recuperamos todos los productos de la bd:
+			responseBody = (ArrayList<Producto>) productoDao.getAll();
 			
-			//response body (lo ponemos en el finally porque lo utilizamos para listar todos los productos y para el detalle)
-			PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
-			String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
-			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
-			out.flush(); //termina de escribir los datos en el body      
-		}	
+			//response status code:
+			if (  ((ArrayList<Producto>)responseBody).isEmpty()  ) {
+				statusCode = HttpServletResponse.SC_NO_CONTENT;	//204, no hay contenido: encuentra el recurso pero está vacío
+			}else {
+				statusCode = HttpServletResponse.SC_OK;	//200, ok
+			}
+			
+		}			
 		
 		
 		//con el código anterior, hemos mejorado el siguiente usando la función obtenerId para controlar errores en la uri e intentando no repetir código
@@ -283,38 +303,29 @@ public class ProductoRestController extends HttpServlet {
 
 		LOG.debug("DELETE eliminar recurso");
 		
-		try {
+		//cogemos el valor del índice del producto en la url con la función obtenerId (lo hacemos en el service, int id = Utilidades.obtenerId(pathInfo); )
 			
-			//buscamos el valor del índice del producto en la url con la función obtenerId:
-			int id = Utilidades.obtenerId(pathInfo);
-			
-			if ( id != -1 ) {	//eliminamos el producto por su id
-					
+		if ( id != -1 ) {	//eliminamos el producto por su id
+				
+			try {
+				
 				Producto pEliminar = productoDao.delete(id);
 				responseBody = pEliminar;
 				
 				//response status code:
-				if ( responseBody != null ) {
-					statusCode = HttpServletResponse.SC_OK;	//200, ok
-				}else {
-					statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
-				}
+				statusCode = HttpServletResponse.SC_OK;	//200, ok
 				
-			}		
+			} catch (Exception e) {
+
+				//response status code:
+				statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
+				responseBody = new ResponseMensaje(e.getMessage());
+			}
+
+		}		
 			
-		}catch (Exception e) {			
-			// response status code
-			responseBody = new ResponseMensaje(e.getMessage());			
-			statusCode = HttpServletResponse.SC_BAD_REQUEST; //400, error del cliente: solicitud mal formada, sintaxis errónea...
-			
-		} finally  {
-			response.setStatus( statusCode );
-			
-			PrintWriter out = response.getWriter(); //se encarga de escribir los datos en el body de la response
-			String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
-			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
-			out.flush(); //termina de escribir los datos en el body      
-		}	
 	}
+	
+	
 
 }
