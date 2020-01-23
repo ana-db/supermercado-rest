@@ -42,7 +42,63 @@ public class Utilidades {
 		}
 
 		return id;
-	
 	}
+	
+	
+	/**
+	 * Obtenemos el número de palabras de la cadena fase
+	 * @param fase, cadena en la que vamos a contar el número de palabras
+	 * @return resul, número de palabras de la cadena
+	 * 
+	 * <p>ejemplos:</p>
+	 * <ol>
+	 * 		<li>null</li>
+	 * 		<li>""</li>
+	 * 		<li>" "</li>
+	 * 		<li>"hola mundo"</li>
+	 * 		<li>"hola   mundo"</li>
+	 * 		<li>" hola mundo "</li>
+	 * </ol>
+	 * */
+	public static int contarPalabras(String fase) {
+		
+		int resul = 0;
+		int contador = 0;
+		
+		if(fase != null) {
+			
+			if(fase.indexOf("")==-1) {
+			
+				fase.trim(); //quitamos espacios al principio y al final de la cadena
+			
+				for(int i=0; i<fase.length();i++){
+					if(fase.charAt(i)!=' ') {
+						contador++; 
+					}
+				}
+				
+				resul = contador;
+				
+			}else {
+				
+				String[] partes = fase.split(" ");
+				
+				for(int i=0; i<partes.length;i++){
+					if(partes[i] != "") {
+						contador++;
+					}
+				}
+				
+				resul = contador;
+				
+			}
+		}
+		
+
+		return resul;
+	}
+	
+	
+	
 
 }
