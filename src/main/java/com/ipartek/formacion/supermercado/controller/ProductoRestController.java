@@ -39,7 +39,7 @@ public class ProductoRestController extends HttpServlet {
 	
 	private String pathInfo;
 	private int statusCode;
-	Object responseBody;
+	private Object responseBody;
 	
 	//Crear Factoria y Validador
 	ValidatorFactory factory;
@@ -72,6 +72,7 @@ public class ProductoRestController extends HttpServlet {
 		
 		pathInfo = request.getPathInfo();
 		LOG.debug("mirar pathInfo:" + pathInfo + " para saber si es listado o detalle" );
+		LOG.debug( "llamada al método " + request.getMethod() + " - URL " + request.getRequestURL() + " - URI " + request.getRequestURI() );
 
 		super.service(request, response); //llama a doGet, doPost, doPut o doDelete
 		
@@ -204,13 +205,11 @@ public class ProductoRestController extends HttpServlet {
 			//response status code:
 			if ( responseBody != null ) {
 				statusCode = HttpServletResponse.SC_CREATED;	//201, creado
-			}else {
-				statusCode = HttpServletResponse.SC_CONFLICT;	//409, nombre duplicado en la bd
 			}
 			
 		} catch (MySQLIntegrityConstraintViolationException e) {
 			// response status code
-			responseBody = new ResponseMensaje(e.getMessage());			
+			responseBody = new ResponseMensaje("El nombre del producto ya existe en la base de datos, elige otro");			
 			statusCode = HttpServletResponse.SC_CONFLICT;	//409, nombre duplicado en la bd
 		} catch (Exception e) {
 			// response status code
@@ -291,7 +290,8 @@ public class ProductoRestController extends HttpServlet {
 			
 			if ( id != -1 ) {	//eliminamos el producto por su id
 					
-				responseBody = productoDao.delete(id);
+				Producto pEliminar = productoDao.delete(id);
+				responseBody = pEliminar;
 				
 				//response status code:
 				if ( responseBody != null ) {
