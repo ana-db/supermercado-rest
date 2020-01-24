@@ -76,6 +76,12 @@ public class ProductoRestController extends HttpServlet {
 	 */
 	protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
+		//habilitar cors (habría que hacerlo en un filtro), para supermercado-cliente-js
+		final HttpServletResponse xhr = (HttpServletResponse) response;
+		xhr.addHeader("Access-Control-Allow-Origin", "*");
+		xhr.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");
+		xhr.addHeader("Access-Control-Allow-Headers", "Content-Type");
+		
 		LOG.debug( "llamada al método " + request.getMethod() + " - URL " + request.getRequestURL() + " - URI " + request.getRequestURI() );
 		
 		//preparamos la respuesta indicando qué tipo de dato devuelve, ContentType y charSet
