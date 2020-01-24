@@ -143,7 +143,10 @@ public class ProductoRestController extends HttpServlet {
 			
 			//recuperamos todos los productos de la bd:
 			responseBody = (ArrayList<Producto>) productoDao.getAll();
-			
+			/*
+			//recuperamos todos los productos de la bd ordenados por nombre:
+			responseBody = (ArrayList<Producto>) productoDao.getAllOrdenado(request.getParameter("_orden"));
+			*/
 			//response status code:
 			if (  ((ArrayList<Producto>)responseBody).isEmpty()  ) {
 				statusCode = HttpServletResponse.SC_NO_CONTENT;	//204, no hay contenido: encuentra el recurso pero está vacío
@@ -210,6 +213,9 @@ public class ProductoRestController extends HttpServlet {
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
+		doPut(request, response);
+		
+		/*
 		LOG.debug("POST crear recurso");
 		
 		try {
@@ -255,6 +261,7 @@ public class ProductoRestController extends HttpServlet {
 			responseBody = new ResponseMensaje(e.getMessage());			
 			statusCode = HttpServletResponse.SC_BAD_REQUEST;	//400, datos incorrectos para un producto: precio negativo…
 		} 
+		*/
 		
 	}
 	
@@ -264,13 +271,13 @@ public class ProductoRestController extends HttpServlet {
 	 */
 	protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
-		LOG.debug("PUT modificar recurso");
+		
 		
 		try {
 			
 			//cogemos el valor del índice del producto en la url con la función obtenerId (lo hacemos en el service, int id = Utilidades.obtenerId(pathInfo); )
 			
-			if ( id != -1 ) { //significa que el producto sí existe en la bd. Lo editamos según su id
+	//		if ( id != -1 ) { //significa que el producto sí existe en la bd. Lo editamos según su id
 				
 				// convertir json del request body a Objeto:
 				BufferedReader reader = request.getReader(); //coge los datos del body de postman           
@@ -281,12 +288,27 @@ public class ProductoRestController extends HttpServlet {
 				//validamos que el objeto esté bien creado:
 				Set<ConstraintViolation<Producto>>  validacionesErrores = validator.validate(producto);		
 				if ( validacionesErrores.isEmpty() ) {
-			
-					Producto pEditar = productoDao.update(producto, id);
-										
-					//response status code:
-					statusCode = HttpServletResponse.SC_OK;	//200, ok
-					responseBody = pEditar;
+					
+					if ( id != -1 ) { //significa que el producto sí existe en la bd. Lo editamos según su id
+						
+						LOG.debug("PUT modificar recurso");
+						
+						Producto pEditar = productoDao.update(producto, id);
+						
+						//response status code:
+						statusCode = HttpServletResponse.SC_OK;	//200, ok
+						responseBody = pEditar;
+				
+					}else { //id == -1: hemos entrado por doPost, significa que el producto no existe en la bd, así que lo creamos
+						
+						LOG.debug("POST crear recurso");
+						
+						Producto pNuevo = productoDao.create(producto);
+						
+						//response status code:
+						statusCode = HttpServletResponse.SC_CREATED;	//201, creado 
+						responseBody = pNuevo;
+					}
 					
 				}else {
 					
@@ -304,10 +326,6 @@ public class ProductoRestController extends HttpServlet {
 					
 				}
 				
-			}else {
-				statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
-			}
-			
 		} catch (MySQLIntegrityConstraintViolationException e) {
 			// response status code
 			responseBody = new ResponseMensaje("El nombre del producto ya existe en la base de datos, elige otro");			
