@@ -266,6 +266,60 @@ public class ProductoRestController extends HttpServlet {
 		
 		LOG.debug("PUT modificar recurso");
 		
+		try {
+			
+			//cogemos el valor del índice del producto en la url con la función obtenerId (lo hacemos en el service, int id = Utilidades.obtenerId(pathInfo); )
+			
+			if ( id != -1 ) { //significa que el producto sí existe en la bd. Lo editamos según su id
+				
+				// convertir json del request body a Objeto:
+				BufferedReader reader = request.getReader(); //coge los datos del body de postman           
+				Gson gson = new Gson(); //crea un objeto gson
+				Producto producto = gson.fromJson(reader, Producto.class);	//convierte el objeto gson en uno de la clase Producto
+				LOG.debug(" Json convertido a Objeto: " + producto);
+			
+				//validamos que el objeto esté bien creado:
+				Set<ConstraintViolation<Producto>>  validacionesErrores = validator.validate(producto);		
+				if ( validacionesErrores.isEmpty() ) {
+			
+					Producto pEditar = productoDao.update(producto, id);
+										
+					//response status code:
+					statusCode = HttpServletResponse.SC_OK;	//200, ok
+					responseBody = pEditar;
+					
+				}else {
+					
+					//response status code:			
+					statusCode = HttpServletResponse.SC_BAD_REQUEST;	//400, datos incorrectos para un producto: precio negativo…
+					ResponseMensaje responseMensaje = new ResponseMensaje("Los valores de este producto no son correctos, revisalos por favor");
+					
+					//enviamos un array de errores para que el usuario tenga una idea de qué datos ha metido mal y por qué:
+					ArrayList<String> errores = new ArrayList<String>();
+					for (ConstraintViolation<Producto> error : validacionesErrores) {					 
+						errores.add( error.getPropertyPath() + " " + error.getMessage() );
+					}				
+					responseMensaje.setErrores(errores);				
+					responseBody = responseMensaje;
+					
+				}
+				
+			}else {
+				statusCode = HttpServletResponse.SC_NOT_FOUND;	//404, no se encuentra el recurso solicitado
+			}
+			
+		} catch (MySQLIntegrityConstraintViolationException e) {
+			// response status code
+			responseBody = new ResponseMensaje("El nombre del producto ya existe en la base de datos, elige otro");			
+			statusCode = HttpServletResponse.SC_CONFLICT;	//409, nombre duplicado en la bd
+		} catch (Exception e) {
+			// response status code
+			responseBody = new ResponseMensaje(e.getMessage());			
+			statusCode = HttpServletResponse.SC_BAD_REQUEST;	//400, datos incorrectos para un producto: precio negativo…
+		} 
+		
+		
+/*		
 		// convertir json del request body a Objeto
 		BufferedReader reader = request.getReader(); //coge los datos del body de postman           
 		Gson gson = new Gson(); //crea un objeto gson
@@ -301,7 +355,7 @@ public class ProductoRestController extends HttpServlet {
 			String jsonResponseBody = new Gson().toJson(responseBody); //convertir java -> json (usando la librería gson)
 			out.print(jsonResponseBody.toString()); //retornamos un array vacío en json dentro del body
 			out.flush(); //termina de escribir los datos en el body      
-		}	
+		}	*/
 	}
 
 	
@@ -314,7 +368,7 @@ public class ProductoRestController extends HttpServlet {
 		
 		//cogemos el valor del índice del producto en la url con la función obtenerId (lo hacemos en el service, int id = Utilidades.obtenerId(pathInfo); )
 			
-		if ( id != -1 ) {	//eliminamos el producto por su id
+		if ( id != -1 ) {	//significa que el producto sí existe en la bd. Lo eliminamos por su id
 				
 			try {
 				
