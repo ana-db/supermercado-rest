@@ -144,8 +144,8 @@ public class ProductoRestController extends HttpServlet {
 			//recuperamos todos los productos de la bd:
 			responseBody = (ArrayList<Producto>) productoDao.getAll();
 			/*
-			//recuperamos todos los productos de la bd ordenados por nombre:
-			responseBody = (ArrayList<Producto>) productoDao.getAllOrdenado(request.getParameter("_orden"));
+			//recuperamos todos los productos de la bd ordenados por nombre (http://localhost:8080/supermercado-rest/producto/?_orden=asc&columna=nombre):
+			responseBody = (ArrayList<Producto>) productoDao.getAllOrdenado(request.getParameter("_orden"), request.getParameter("columna"));
 			*/
 			//response status code:
 			if (  ((ArrayList<Producto>)responseBody).isEmpty()  ) {
@@ -270,8 +270,6 @@ public class ProductoRestController extends HttpServlet {
 	 * @see HttpServlet#doPut(HttpServletRequest, HttpServletResponse)
 	 */
 	protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		
-		
 		
 		try {
 			
